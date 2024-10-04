@@ -1,0 +1,226 @@
+Attribute VB_Name = "commonDHFunction"
+'*******************************************************************************
+' Copyright (C) 2004 Cognex Corporation
+'
+' Subject to Cognex Corporation's terms and conditions and license agreement,
+' you are authorized to use and modify this source code in any way you find
+' useful, provided the Software and/or the modified Software is used solely in
+' conjunction with a Cognex Machine Vision System.  Furthermore, you acknowledge
+' and agree that Cognex has no warranty, oblkigations or liability for your use
+' of the Software.
+'*******************************************************************************
+'
+' This class illustrates how to pass a user-allocated block of
+' memory into a CogImage8Root object that can then be passed to the
+' SetRoot function of a CogImage8Grey. This "wraps" a VisionPro
+' image around the user-allocated pixel memory without having to copy
+' them.
+Option Explicit
+
+' These are Win32 functions for allocating and freeing memory.
+' In an actual application the memory may have already been allocated
+' by other software, in which case the Allocate function below can be
+' modified to accept an existing memory buffer.
+Private Declare Function GetProcessHeap Lib "kernel32" () As Long
+Private Declare Function HeapAlloc Lib "kernel32" (ByVal hHeap As Long, ByVal dwFlags As Long, ByVal dwBytes As Long) As Long
+Private Declare Function HeapFree Lib "kernel32" (ByVal hHeap As Long, ByVal dwFlags As Long, lpMem As Any) As Long
+
+Private Declare Function GlobalAlloc Lib "kernel32" (ByVal wFlags As Long, ByVal dwBytes As Long) As Long
+Private Declare Function GlobalFree Lib "kernel32" (ByVal hMem As Long) As Long
+
+Public Declare Function GetAddrOf Lib "kernel32" Alias "MulDiv" (nNumber As Any, Optional ByVal nNumerator As Long = 1, Optional ByVal nDenominator As Long = 1) As Long
+
+Public m_PixelMemory(0 To 3) As Long                            ' Address of allocated pixel memory
+Public m_pImgMem(0 To 3) As Long                        ' pointer to image memory
+Public m_Image(0 To 3) As New CogImage8Grey
+
+'Public m_ImageSaveFile As New CogImageFile
+'Public m_ImageLoadFile As New CogImageFile
+
+Public Declare Function GetTickCount Lib "kernel32" () As Long
+Public Declare Function timeGetTime Lib "winmm" () As Long
+
+
+Public start_T As Long
+Public stop_T As Long
+Public time_T As Long
+
+Public Enum FvImageRotationConstants
+    FvImageRotation0 = 0
+    FvImageRotation90 = 1
+    FvImageRotation180 = 2
+    FvImageRotation270 = 3
+End Enum
+
+
+'메모리 버퍼 할당
+Public Function AllocateFav(intcam As Integer, ByVal Width As Long, ByVal Height As Long)
+    'm_pImgMem(intCam) = HeapAlloc(GetProcessHeap, 0, Width * Height)
+    fvImageBuf(intcam) = GlobalAlloc(0, Width * Height)
+End Function
+
+'메모리 버퍼 해제
+Public Function FreeAllocateMemoryFav(intcam As Integer)
+    If m_pImgMem(intcam) <> 0 Then
+        'HeapFree GetProcessHeap, 0, m_pImgMem(intCam)
+        GlobalFree m_pImgMem(intcam)
+        m_pImgMem(intcam) = 0
+    End If
+End Function
+
+Public Function AllocateNew(intcam As Integer, Width As Long, ByVal Height As Long)
+
+  If m_PixelMemory(intcam) <> 0 Then
+    err.Raise -1, , "Memory is already allocated"
+  End If
+  
+  ' Allocate a block of memory from a heap.
+  m_PixelMemory(intcam) = GlobalAlloc(0, Width * Height)
+
+End Function
+
+'Public Function Allocate(ByVal Width As Long, ByVal Height As Long, ByVal bc_buffer As Long) As CogImage8Root
+''''''
+''''''Dim tme As IDisposable
+''''''
+''''''  Dim buffer As ICogImage8RootBuffer
+''''''  Set buffer = New CogImage8Root
+''''''
+''''''  m_PixelMemory = bc_buffer
+''''''
+''''''  buffer.Initialize Width, Height, m_PixelMemory, Width, tme
+''''''
+''''''  Set Allocate = buffer
+''''''  Set buffer = Nothing
+'End Function
+
+Public Function FreeAllocatedMemory(intcam As Integer)
+  If m_PixelMemory(intcam) <> 0 Then
+    GlobalFree m_PixelMemory(intcam)
+    m_PixelMemory(intcam) = 0
+  End If
+End Function
+
+
+
+
+'Delay Time
+Public Sub Delaytime(ByVal ttm As Double)
+    Dim tm As Single
+    
+    tm = ttm + Timer
+    Do
+        DoEvents
+    Loop Until (tm < Timer)
+End Sub
+Public Function WriteResultLog(ByVal strLog As String)
+    Dim strFilename As String
+    Dim iFileNumber As Integer
+    
+    strFilename = App.Path & "\LOG\RESULT_" & Format(Now(), "yyyymm") & ".txt"
+    
+    iFileNumber = FreeFile
+    
+    Open strFilename For Append As iFileNumber
+    
+        Print #iFileNumber, "[" & Date & ", " & Time & "], " & strLog
+        
+    Close #iFileNumber
+End Function
+
+Public Function WriteLog(strLog As String)
+
+    Dim strFilename As String
+    Dim strFileNumber As Integer
+    
+    strFilename = App.Path & "\LOG\" & Format(Now(), "yyyymm") & ".txt"
+    strFileNumber = FreeFile
+    
+    Open strFilename For Append As strFileNumber
+    
+        Print #strFileNumber, "[" & Date & ", " & Time & "], " & strLog
+        
+    Close #strFileNumber
+
+End Function
+
+'에러메세지 기록
+Public Function WriteErrorLog(strLog As String)
+
+    Dim strFilename As String
+    Dim strFileNumber As Integer
+    
+    strFilename = App.Path & "\LOG\ErrorLog_" & Format(Now(), "yyyymm") & ".txt"
+    strFileNumber = FreeFile
+    
+    Open strFilename For Append Shared As strFileNumber
+    
+        Print #strFileNumber, "[" & Date & ", " & Time & "], " & strLog
+        
+    Close #strFileNumber
+
+End Function
+
+
+
+
+
+
+
+
+Public Function start_Time()
+    
+   
+    start_T = GetTickCount
+   
+    
+End Function
+
+
+Public Function stop_Time()
+    stop_T = GetTickCount
+End Function
+
+Public Function time_Time()
+    
+   
+    time_T = stop_T - start_T
+    
+   
+    
+End Function
+
+Public Function time_mainTime(iIndex As Integer)
+    
+    time_T = stop_T - start_T
+
+    
+End Function
+
+Public Function RotationPoint(ByRef rx As Double, ByRef ry As Double, BaseX As Double, BaseY As Double, TargetX As Double, TargetY As Double, Rotation As Double) As Boolean
+On Error GoTo err
+    Dim dX As Double
+    Dim dy As Double
+    Dim Angle As Double
+    
+    Dim ResultX As Double
+    Dim ResultY As Double
+    
+    dX = BaseX - TargetX
+    dy = BaseY - TargetY
+    
+    Angle = -Rotation * (3.1415926535 / 180)
+    
+    ResultX = (dX * Cos(Angle)) - (dy * Sin(Angle))
+    ResultY = (dX * Sin(Angle)) + (dy * Cos(Angle))
+    
+    rx = Abs(BaseX - ResultX)
+    ry = Abs(BaseY - ResultY)
+    
+    RotationPoint = True
+    
+    Exit Function
+err:
+    RotationPoint = False
+End Function
+
